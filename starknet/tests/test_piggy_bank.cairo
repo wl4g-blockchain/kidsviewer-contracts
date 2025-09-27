@@ -21,8 +21,8 @@ fn PARENT() -> ContractAddress {
     'PARENT'.try_into().unwrap()
 }
 
-fn CHILD() -> ContractAddress {
-    'CHILD'.try_into().unwrap()
+fn CHILD() -> u64 {
+    1
 }
 
 fn USER() -> ContractAddress {
@@ -82,10 +82,10 @@ fn test_receive_reward() {
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Check balances
-    let child_balance = piggy_bank_dispatcher.child_balances(CHILD(), TOKEN());
-    let child_earnings = piggy_bank_dispatcher.child_earnings(CHILD(), TOKEN());
+    let child_balance = piggy_bank_dispatcher.person_balances(CHILD(), TOKEN());
+    let person_earnings = piggy_bank_dispatcher.person_earnings(CHILD(), TOKEN());
     assert(child_balance == amount, 'Balance match');
-    assert(child_earnings == amount, 'Earnings match');
+    assert(person_earnings == amount, 'Earnings match');
 }
 
 #[test]
@@ -152,12 +152,12 @@ fn test_request_withdrawal() {
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Request withdrawal
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.request_withdrawal(TOKEN(), amount, reason);
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.request_withdrawal(CHILD(), TOKEN(), amount, reason);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Check request
-    let request_id = piggy_bank_dispatcher.child_request_ids(CHILD());
+    let request_id = piggy_bank_dispatcher.person_request_ids(CHILD());
     let (child, token, amount_val, reason_val, approved, executed, _) = piggy_bank_dispatcher
         .get_withdrawal_request(request_id);
     assert(child == CHILD(), 'Request child should match');
@@ -176,8 +176,8 @@ fn test_request_withdrawal_reverts_when_insufficient_balance() {
     let reason = 'Need money for school supplies';
 
     // Try to request withdrawal without balance
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.request_withdrawal(TOKEN(), amount, reason);
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.request_withdrawal(CHILD(), TOKEN(), amount, reason);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 }
 
@@ -195,8 +195,8 @@ fn test_request_withdrawal_reverts_when_paused() {
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Try to request withdrawal when paused
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.request_withdrawal(TOKEN(), amount, reason);
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.request_withdrawal(CHILD(), TOKEN(), amount, reason);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 }
 
@@ -207,8 +207,8 @@ fn test_request_withdrawal_reverts_when_amount_zero() {
     let reason = 'Need money for school supplies';
 
     // Try to request zero amount
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.request_withdrawal(TOKEN(), 0, reason);
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.request_withdrawal(CHILD(), TOKEN(), 0, reason);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 }
 
@@ -225,8 +225,8 @@ fn test_approve_withdrawal() {
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Request withdrawal
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.request_withdrawal(TOKEN(), amount, reason);
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.request_withdrawal(CHILD(), TOKEN(), amount, reason);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Approve withdrawal
@@ -237,7 +237,7 @@ fn test_approve_withdrawal() {
 
     // Check request and balance
     let (_, _, _, _, approved, _, _) = piggy_bank_dispatcher.get_withdrawal_request(1);
-    let child_balance = piggy_bank_dispatcher.child_balances(CHILD(), TOKEN());
+    let child_balance = piggy_bank_dispatcher.person_balances(CHILD(), TOKEN());
     assert(approved, 'Request should be approved');
     assert(child_balance == 1000000000000000000000 - amount, 'Child balance should be reduced');
 }
@@ -255,8 +255,8 @@ fn test_approve_withdrawal_reverts_when_not_owner() {
     piggy_bank_dispatcher.receive_reward(CHILD(), TOKEN(), 1000000000000000000000);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.request_withdrawal(TOKEN(), amount, reason);
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.request_withdrawal(CHILD(), TOKEN(), amount, reason);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Try to approve as non-owner
@@ -278,8 +278,8 @@ fn test_reject_withdrawal() {
     piggy_bank_dispatcher.receive_reward(CHILD(), TOKEN(), 1000000000000000000000);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.request_withdrawal(TOKEN(), amount, reason);
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.request_withdrawal(CHILD(), TOKEN(), amount, reason);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Reject withdrawal
@@ -308,12 +308,12 @@ fn test_invest_in_aave() {
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Invest in AAVE
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.invest_in_aave(TOKEN(), amount, AAVE_PRODUCT());
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.invest_in_aave(CHILD(), TOKEN(), amount, AAVE_PRODUCT());
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Check balance
-    let child_balance = piggy_bank_dispatcher.child_balances(CHILD(), TOKEN());
+    let child_balance = piggy_bank_dispatcher.person_balances(CHILD(), TOKEN());
     assert(child_balance == 1000000000000000000000 - amount, 'Child balance should be reduced');
 }
 
@@ -323,9 +323,14 @@ fn test_invest_in_aave_reverts_when_insufficient_balance() {
     let piggy_bank_dispatcher = __deploy__();
     let amount = 500000000000000000000;
 
+    // Setup: parent approval but no balance
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.set_parent_approval(CHILD(), true);
+    stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
+
     // Try to invest without balance
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.invest_in_aave(TOKEN(), amount, AAVE_PRODUCT());
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.invest_in_aave(CHILD(), TOKEN(), amount, AAVE_PRODUCT());
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 }
 
@@ -342,8 +347,8 @@ fn test_invest_in_aave_reverts_when_paused() {
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Try to invest when paused
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.invest_in_aave(TOKEN(), amount, AAVE_PRODUCT());
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.invest_in_aave(CHILD(), TOKEN(), amount, AAVE_PRODUCT());
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 }
 
@@ -353,8 +358,8 @@ fn test_invest_in_aave_reverts_when_amount_zero() {
     let piggy_bank_dispatcher = __deploy__();
 
     // Try to invest zero amount
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.invest_in_aave(TOKEN(), 0, AAVE_PRODUCT());
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.invest_in_aave(CHILD(), TOKEN(), 0, AAVE_PRODUCT());
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 }
 
@@ -375,7 +380,7 @@ fn test_recover_all_investments() {
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Check balance
-    let child_balance = piggy_bank_dispatcher.child_balances(CHILD(), TOKEN());
+    let child_balance = piggy_bank_dispatcher.person_balances(CHILD(), TOKEN());
     assert(child_balance == 0, 'Balance zero');
 }
 
@@ -474,28 +479,28 @@ fn test_set_aave_product_approval_reverts_when_not_parent() {
 }
 
 #[test]
-fn test_set_child_active() {
+fn test_set_person_active() {
     let piggy_bank_dispatcher = __deploy__();
 
     // Set child active
     let actual_owner = get_contract_owner(piggy_bank_dispatcher);
     start_cheat_caller_address(piggy_bank_dispatcher.contract_address, actual_owner);
-    piggy_bank_dispatcher.set_child_active(CHILD(), true);
+    piggy_bank_dispatcher.set_person_active(CHILD(), true);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Check if active
-    let is_active = piggy_bank_dispatcher.child_active(CHILD());
+    let is_active = piggy_bank_dispatcher.person_active(CHILD());
     assert(is_active, 'Child should be active');
 }
 
 #[test]
 #[should_panic(expected: ('Caller is not the owner',))]
-fn test_set_child_active_reverts_when_not_owner() {
+fn test_set_person_active_reverts_when_not_owner() {
     let piggy_bank_dispatcher = __deploy__();
 
     // Try to set child active as non-owner
     start_cheat_caller_address(piggy_bank_dispatcher.contract_address, USER());
-    piggy_bank_dispatcher.set_child_active(CHILD(), true);
+    piggy_bank_dispatcher.set_person_active(CHILD(), true);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 }
 
@@ -531,7 +536,7 @@ fn test_unpause() {
 }
 
 #[test]
-fn test_get_child_balance() {
+fn test_get_person_balance() {
     let piggy_bank_dispatcher = __deploy__();
     let amount = 1000000000000000000000;
 
@@ -542,12 +547,12 @@ fn test_get_child_balance() {
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Check child balance
-    let balance = piggy_bank_dispatcher.get_child_balance(CHILD(), TOKEN());
+    let balance = piggy_bank_dispatcher.get_person_balance(CHILD(), TOKEN());
     assert(balance == amount, 'Balance match');
 }
 
 #[test]
-fn test_get_child_earnings() {
+fn test_get_person_earnings() {
     let piggy_bank_dispatcher = __deploy__();
     let amount = 1000000000000000000000;
 
@@ -558,7 +563,7 @@ fn test_get_child_earnings() {
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Check child earnings
-    let (balance, earnings) = piggy_bank_dispatcher.get_child_earnings(CHILD(), TOKEN());
+    let (balance, earnings) = piggy_bank_dispatcher.get_person_earnings(CHILD(), TOKEN());
     assert(balance == amount, 'Balance match');
     assert(earnings == amount, 'Earnings match');
 }
@@ -575,8 +580,8 @@ fn test_get_withdrawal_request() {
     piggy_bank_dispatcher.receive_reward(CHILD(), TOKEN(), 1000000000000000000000);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.request_withdrawal(TOKEN(), amount, reason);
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.request_withdrawal(CHILD(), TOKEN(), amount, reason);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Get withdrawal request
@@ -589,7 +594,7 @@ fn test_get_withdrawal_request() {
 }
 
 #[test]
-fn test_get_child_withdrawal_requests() {
+fn test_get_person_withdrawal_requests() {
     let piggy_bank_dispatcher = __deploy__();
     let amount = 500000000000000000000;
     let reason = 'Need money for school supplies';
@@ -600,12 +605,12 @@ fn test_get_child_withdrawal_requests() {
     piggy_bank_dispatcher.receive_reward(CHILD(), TOKEN(), 1000000000000000000000);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
-    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, CHILD());
-    piggy_bank_dispatcher.request_withdrawal(TOKEN(), amount, reason);
+    start_cheat_caller_address(piggy_bank_dispatcher.contract_address, PARENT());
+    piggy_bank_dispatcher.request_withdrawal(CHILD(), TOKEN(), amount, reason);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Get child withdrawal requests
-    let request_id = piggy_bank_dispatcher.get_child_withdrawal_requests(CHILD());
+    let request_id = piggy_bank_dispatcher.get_person_withdrawal_requests(CHILD());
     assert(request_id == 1, 'Request ID should be 1');
 }
 
@@ -651,20 +656,20 @@ fn test_is_parent_approved() {
 }
 
 #[test]
-fn test_is_child_active() {
+fn test_is_person_active() {
     let piggy_bank_dispatcher = __deploy__();
 
     // Initially not active
-    let is_active = piggy_bank_dispatcher.is_child_active(CHILD());
+    let is_active = piggy_bank_dispatcher.is_person_active(CHILD());
     assert(!is_active, 'Not active');
 
     // Set active
     let actual_owner = get_contract_owner(piggy_bank_dispatcher);
     start_cheat_caller_address(piggy_bank_dispatcher.contract_address, actual_owner);
-    piggy_bank_dispatcher.set_child_active(CHILD(), true);
+    piggy_bank_dispatcher.set_person_active(CHILD(), true);
     stop_cheat_caller_address(piggy_bank_dispatcher.contract_address);
 
     // Now active
-    let is_active = piggy_bank_dispatcher.is_child_active(CHILD());
+    let is_active = piggy_bank_dispatcher.is_person_active(CHILD());
     assert(is_active, 'Child should be active');
 }

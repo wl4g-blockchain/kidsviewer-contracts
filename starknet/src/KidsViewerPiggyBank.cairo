@@ -226,7 +226,6 @@ pub mod KidsViewerPiggyBank {
             when_not_paused(@self);
             valid_amount(amount);
 
-            let caller = get_caller_address();
             let current_balance = self.person_balances.read((person_id, token));
             assert(current_balance >= amount, 'Insufficient');
 
@@ -273,13 +272,13 @@ pub mod KidsViewerPiggyBank {
             only_owner(@self);
             when_not_paused(@self);
 
-            let (person_id, token, amount, _, approved, executed, _) = self
+            let (_, _, _, _, approved, executed, _) = self
                 .withdrawal_requests
                 .read(request_id);
             assert(!approved, 'Already approved');
             assert(!executed, 'Already executed');
 
-            let (person_id, token, amount, reason, approved, executed, _) = self.withdrawal_requests.read(request_id);
+            let (person_id, token, amount, _, _, _, _) = self.withdrawal_requests.read(request_id);
             self
                 .withdrawal_requests
                 .write(request_id, (person_id, token, amount, reason, false, true, reason));
