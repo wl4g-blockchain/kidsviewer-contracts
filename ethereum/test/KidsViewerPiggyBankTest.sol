@@ -122,6 +122,9 @@ contract KidsViewerPiggyBankTest is Test {
     string memory reason = 'Need money for school supplies';
 
     vm.prank(parent1);
+    piggyBank.setParentApproval(person1, true);
+
+    vm.prank(parent1);
     vm.expectRevert('KidsViewerPiggyBank: Insufficient');
     piggyBank.requestWithdrawal(person1, token1, amount, reason);
   }
@@ -252,6 +255,9 @@ contract KidsViewerPiggyBankTest is Test {
 
   function testInvestInAaveRevertsWhenInsufficientBalance() public {
     uint256 amount = 500 * 10 ** 6;
+
+    vm.prank(parent1);
+    piggyBank.setParentApproval(person1, true);
 
     vm.prank(parent1);
     vm.expectRevert('KidsViewerPiggyBank: Insufficient');
