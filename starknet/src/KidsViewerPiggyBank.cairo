@@ -48,7 +48,7 @@ pub trait IKidsViewerPiggyBank<CS> {
     fn aave_product_approvals(
         self: @CS, person_id: u64, aave_product: ContractAddress,
     ) -> bool;
-    fn child_active(self: @CS, child: ContractAddress) -> bool;
+    fn person_active(self: @CS, person_id: u64) -> bool;
 }
 
 // Contract implementation
@@ -78,7 +78,7 @@ pub mod KidsViewerPiggyBank {
 
     #[derive(Drop, starknet::Event)]
     pub struct RewardReceived {
-        pub child: ContractAddress,
+        pub person_id: u64,
         pub token: ContractAddress,
         pub amount: u256,
         pub timestamp: u64,
@@ -86,7 +86,7 @@ pub mod KidsViewerPiggyBank {
 
     #[derive(Drop, starknet::Event)]
     pub struct WithdrawalRequested {
-        pub child: ContractAddress,
+        pub person_id: u64,
         pub token: ContractAddress,
         pub amount: u256,
         pub reason: felt252,
@@ -96,14 +96,14 @@ pub mod KidsViewerPiggyBank {
 
     #[derive(Drop, starknet::Event)]
     pub struct WithdrawalApproved {
-        pub child: ContractAddress,
+        pub person_id: u64,
         pub request_id: u64,
         pub timestamp: u64,
     }
 
     #[derive(Drop, starknet::Event)]
     pub struct WithdrawalRejected {
-        pub child: ContractAddress,
+        pub person_id: u64,
         pub request_id: u64,
         pub reason: felt252,
         pub timestamp: u64,
@@ -111,7 +111,7 @@ pub mod KidsViewerPiggyBank {
 
     #[derive(Drop, starknet::Event)]
     pub struct InvestmentMade {
-        pub child: ContractAddress,
+        pub person_id: u64,
         pub token: ContractAddress,
         pub amount: u256,
         pub aave_product: ContractAddress,
@@ -120,7 +120,7 @@ pub mod KidsViewerPiggyBank {
 
     #[derive(Drop, starknet::Event)]
     pub struct InvestmentRecovered {
-        pub child: ContractAddress,
+        pub person_id: u64,
         pub token: ContractAddress,
         pub amount: u256,
         pub timestamp: u64,
@@ -129,14 +129,14 @@ pub mod KidsViewerPiggyBank {
     #[derive(Drop, starknet::Event)]
     pub struct ParentApprovalUpdated {
         pub parent: ContractAddress,
-        pub child: ContractAddress,
+        pub person_id: u64,
         pub approved: bool,
         pub timestamp: u64,
     }
 
     #[derive(Drop, starknet::Event)]
     pub struct InvestmentConfigUpdated {
-        pub child: ContractAddress,
+        pub person_id: u64,
         pub enabled: bool,
         pub max_amount: u256,
         pub timestamp: u64,
@@ -144,7 +144,7 @@ pub mod KidsViewerPiggyBank {
 
     #[derive(Drop, starknet::Event)]
     pub struct AaveProductApprovalUpdated {
-        pub child: ContractAddress,
+        pub person_id: u64,
         pub aave_product: ContractAddress,
         pub approved: bool,
         pub timestamp: u64,
@@ -156,16 +156,16 @@ pub mod KidsViewerPiggyBank {
         pub owner: ContractAddress,
         pub paused: bool,
         pub next_request_id: u64,
-        pub child_balances: Map<(ContractAddress, ContractAddress), u256>,
-        pub child_earnings: Map<(ContractAddress, ContractAddress), u256>,
+        pub person_balances: Map<(u64, ContractAddress), u256>,
+        pub person_earnings: Map<(u64, ContractAddress), u256>,
         pub withdrawal_requests: Map<
-            u64, (ContractAddress, ContractAddress, u256, felt252, bool, bool, felt252),
+            u64, (u64, ContractAddress, u256, felt252, bool, bool, felt252),
         >,
-        pub child_request_ids: Map<ContractAddress, u64>,
-        pub parent_approvals: Map<(ContractAddress, ContractAddress), bool>,
-        pub investment_configs: Map<ContractAddress, (bool, u256, u256)>,
-        pub aave_product_approvals: Map<(ContractAddress, ContractAddress), bool>,
-        pub child_active: Map<ContractAddress, bool>,
+        pub person_request_ids: Map<u64, u64>,
+        pub parent_approvals: Map<(ContractAddress, u64), bool>,
+        pub investment_configs: Map<u64, (bool, u256, u256)>,
+        pub aave_product_approvals: Map<(u64, ContractAddress), bool>,
+        pub person_active: Map<u64, bool>,
     }
 
     // Constructor
@@ -188,9 +188,9 @@ pub mod KidsViewerPiggyBank {
         assert(!is_paused, 'Paused');
     }
 
-    fn only_parent(self: @ContractState, child: ContractAddress) {
+    fn only_parent(self: @ContractState, person_id: u64) {
         let caller = get_caller_address();
-        let approved = self.parent_approvals.read((caller, child));
+        let approved = self.parent_approvals.read((caller, person_id));
         assert(approved, 'Not authorized');
     }
 
@@ -202,32 +202,32 @@ pub mod KidsViewerPiggyBank {
     #[abi(embed_v0)]
     impl IKidsViewerPiggyBankImpl of super::IKidsViewerPiggyBank<ContractState> {
         fn receive_reward(
-            ref self: ContractState, child: ContractAddress, token: ContractAddress, amount: u256,
+            ref self: ContractState, person_id: u64, token: ContractAddress, amount: u256,
         ) {
             when_not_paused(@self);
             valid_amount(amount);
-            only_parent(@self, child);
+            only_parent(@self, person_id);
 
-            let current_balance = self.child_balances.read((child, token));
+            let current_balance = self.person_balances.read((person_id, token));
             let new_balance = current_balance + amount;
-            self.child_balances.write((child, token), new_balance);
+            self.person_balances.write((person_id, token), new_balance);
 
-            let current_earnings = self.child_earnings.read((child, token));
+            let current_earnings = self.person_earnings.read((person_id, token));
             let new_earnings = current_earnings + amount;
-            self.child_earnings.write((child, token), new_earnings);
+            self.person_earnings.write((person_id, token), new_earnings);
 
             let timestamp = get_block_timestamp();
-            self.emit(RewardReceived { child, token, amount, timestamp });
+            self.emit(RewardReceived { person_id, token, amount, timestamp });
         }
 
         fn request_withdrawal(
-            ref self: ContractState, token: ContractAddress, amount: u256, reason: felt252,
+            ref self: ContractState, person_id: u64, token: ContractAddress, amount: u256, reason: felt252,
         ) {
             when_not_paused(@self);
             valid_amount(amount);
 
             let caller = get_caller_address();
-            let current_balance = self.child_balances.read((caller, token));
+            let current_balance = self.person_balances.read((person_id, token));
             assert(current_balance >= amount, 'Insufficient');
 
             let request_id = self.next_request_id.read();
@@ -235,14 +235,14 @@ pub mod KidsViewerPiggyBank {
 
             self
                 .withdrawal_requests
-                .write(request_id, (caller, token, amount, reason, false, false, reason));
-            self.child_request_ids.write(caller, request_id);
+                .write(request_id, (person_id, token, amount, reason, false, false, reason));
+            self.person_request_ids.write(person_id, request_id);
             self.next_request_id.write(request_id + 1);
 
             self
                 .emit(
                     WithdrawalRequested {
-                        child: caller, token, amount, reason, request_id, timestamp,
+                        person_id, token, amount, reason, request_id, timestamp,
                     },
                 );
         }
@@ -251,7 +251,7 @@ pub mod KidsViewerPiggyBank {
             only_owner(@self);
             when_not_paused(@self);
 
-            let (child, token, amount, reason, approved, executed, _) = self
+            let (person_id, token, amount, reason, approved, executed, _) = self
                 .withdrawal_requests
                 .read(request_id);
             assert(!approved, 'Already approved');
@@ -259,115 +259,115 @@ pub mod KidsViewerPiggyBank {
 
             self
                 .withdrawal_requests
-                .write(request_id, (child, token, amount, reason, true, false, reason));
+                .write(request_id, (person_id, token, amount, reason, true, false, reason));
 
-            let current_balance = self.child_balances.read((child, token));
+            let current_balance = self.person_balances.read((person_id, token));
             let new_balance = current_balance - amount;
-            self.child_balances.write((child, token), new_balance);
+            self.person_balances.write((person_id, token), new_balance);
 
             let current_timestamp = get_block_timestamp();
-            self.emit(WithdrawalApproved { child, request_id, timestamp: current_timestamp });
+            self.emit(WithdrawalApproved { person_id, request_id, timestamp: current_timestamp });
         }
 
         fn reject_withdrawal(ref self: ContractState, request_id: u64, reason: felt252) {
             only_owner(@self);
             when_not_paused(@self);
 
-            let (child, token, amount, _, approved, executed, _) = self
+            let (person_id, token, amount, _, approved, executed, _) = self
                 .withdrawal_requests
                 .read(request_id);
             assert(!approved, 'Already approved');
             assert(!executed, 'Already executed');
 
+            let (person_id, token, amount, reason, approved, executed, _) = self.withdrawal_requests.read(request_id);
             self
                 .withdrawal_requests
-                .write(request_id, (child, token, amount, reason, false, true, reason));
+                .write(request_id, (person_id, token, amount, reason, false, true, reason));
 
             let current_timestamp = get_block_timestamp();
             self
                 .emit(
-                    WithdrawalRejected { child, request_id, reason, timestamp: current_timestamp },
+                    WithdrawalRejected { person_id, request_id, reason, timestamp: current_timestamp },
                 );
         }
 
         fn invest_in_aave(
             ref self: ContractState,
+            person_id: u64,
             token: ContractAddress,
             amount: u256,
             aave_product: ContractAddress,
         ) {
             when_not_paused(@self);
             valid_amount(amount);
+            only_parent(@self, person_id);
 
-            let caller = get_caller_address();
-            let current_balance = self.child_balances.read((caller, token));
+            let current_balance = self.person_balances.read((person_id, token));
             assert(current_balance >= amount, 'Insufficient');
 
             let new_balance = current_balance - amount;
-            self.child_balances.write((caller, token), new_balance);
+            self.person_balances.write((person_id, token), new_balance);
 
             let timestamp = get_block_timestamp();
-            self.emit(InvestmentMade { child: caller, token, amount, aave_product, timestamp });
+            self.emit(InvestmentMade { person_id, token, amount, aave_product, timestamp });
         }
 
         fn recover_all_investments(
-            ref self: ContractState, child: ContractAddress, token: ContractAddress,
+            ref self: ContractState, person_id: u64, token: ContractAddress,
         ) {
-            let caller = get_caller_address();
-            let is_approved = self.parent_approvals.read((caller, child));
-            assert(is_approved, 'Not authorized');
+            only_parent(@self, person_id);
             when_not_paused(@self);
 
-            let current_balance = self.child_balances.read((child, token));
+            let current_balance = self.person_balances.read((person_id, token));
             let recovered_amount = current_balance;
 
-            self.child_balances.write((child, token), 0);
+            self.person_balances.write((person_id, token), 0);
 
             let timestamp = get_block_timestamp();
-            self.emit(InvestmentRecovered { child, token, amount: recovered_amount, timestamp });
+            self.emit(InvestmentRecovered { person_id, token, amount: recovered_amount, timestamp });
         }
 
-        fn set_parent_approval(ref self: ContractState, child: ContractAddress, approved: bool) {
+        fn set_parent_approval(ref self: ContractState, person_id: u64, approved: bool) {
             let caller = get_caller_address();
-            self.parent_approvals.write((caller, child), approved);
+            self.parent_approvals.write((caller, person_id), approved);
 
             let timestamp = get_block_timestamp();
-            self.emit(ParentApprovalUpdated { parent: caller, child, approved, timestamp });
+            self.emit(ParentApprovalUpdated { parent: caller, person_id, approved, timestamp });
         }
 
         fn set_investment_config(
-            ref self: ContractState, child: ContractAddress, enabled: bool, max_amount: u256,
+            ref self: ContractState, person_id: u64, enabled: bool, max_amount: u256,
         ) {
             let caller = get_caller_address();
-            let is_approved = self.parent_approvals.read((caller, child));
+            let is_approved = self.parent_approvals.read((caller, person_id));
             assert(is_approved, 'Not authorized');
 
             let new_config = (enabled, max_amount, 0);
-            self.investment_configs.write(child, new_config);
+            self.investment_configs.write(person_id, new_config);
 
             let timestamp = get_block_timestamp();
-            self.emit(InvestmentConfigUpdated { child, enabled, max_amount, timestamp });
+            self.emit(InvestmentConfigUpdated { person_id, enabled, max_amount, timestamp });
         }
 
         fn set_aave_product_approval(
             ref self: ContractState,
-            child: ContractAddress,
+            person_id: u64,
             aave_product: ContractAddress,
             approved: bool,
         ) {
             let caller = get_caller_address();
-            let is_approved = self.parent_approvals.read((caller, child));
+            let is_approved = self.parent_approvals.read((caller, person_id));
             assert(is_approved, 'Not authorized');
 
-            self.aave_product_approvals.write((child, aave_product), approved);
+            self.aave_product_approvals.write((person_id, aave_product), approved);
 
             let timestamp = get_block_timestamp();
-            self.emit(AaveProductApprovalUpdated { child, aave_product, approved, timestamp });
+            self.emit(AaveProductApprovalUpdated { person_id, aave_product, approved, timestamp });
         }
 
-        fn set_child_active(ref self: ContractState, child: ContractAddress, active: bool) {
+        fn set_person_active(ref self: ContractState, person_id: u64, active: bool) {
             only_owner(@self);
-            self.child_active.write(child, active);
+            self.person_active.write(person_id, active);
         }
 
         fn pause(ref self: ContractState) {
@@ -380,50 +380,50 @@ pub mod KidsViewerPiggyBank {
             self.paused.write(false);
         }
 
-        fn get_child_balance(
-            self: @ContractState, child: ContractAddress, token: ContractAddress,
+        fn get_person_balance(
+            self: @ContractState, person_id: u64, token: ContractAddress,
         ) -> u256 {
-            self.child_balances.read((child, token))
+            self.person_balances.read((person_id, token))
         }
 
-        fn get_child_earnings(
-            self: @ContractState, child: ContractAddress, token: ContractAddress,
+        fn get_person_earnings(
+            self: @ContractState, person_id: u64, token: ContractAddress,
         ) -> (u256, u256) {
-            let balance = self.child_balances.read((child, token));
-            let earnings = self.child_earnings.read((child, token));
+            let balance = self.person_balances.read((person_id, token));
+            let earnings = self.person_earnings.read((person_id, token));
             (balance, earnings)
         }
 
         fn get_withdrawal_request(
             self: @ContractState, request_id: u64,
-        ) -> (ContractAddress, ContractAddress, u256, felt252, bool, bool, felt252) {
+        ) -> (u64, ContractAddress, u256, felt252, bool, bool, felt252) {
             self.withdrawal_requests.read(request_id)
         }
 
-        fn get_child_withdrawal_requests(self: @ContractState, child: ContractAddress) -> u64 {
-            self.child_request_ids.read(child)
+        fn get_person_withdrawal_requests(self: @ContractState, person_id: u64) -> u64 {
+            self.person_request_ids.read(person_id)
         }
 
         fn get_investment_config(
-            self: @ContractState, child: ContractAddress,
+            self: @ContractState, person_id: u64,
         ) -> (bool, u256, u256) {
-            self.investment_configs.read(child)
+            self.investment_configs.read(person_id)
         }
 
         fn is_aave_product_approved(
-            self: @ContractState, child: ContractAddress, aave_product: ContractAddress,
+            self: @ContractState, person_id: u64, aave_product: ContractAddress,
         ) -> bool {
-            self.aave_product_approvals.read((child, aave_product))
+            self.aave_product_approvals.read((person_id, aave_product))
         }
 
         fn is_parent_approved(
-            self: @ContractState, parent: ContractAddress, child: ContractAddress,
+            self: @ContractState, parent: ContractAddress, person_id: u64,
         ) -> bool {
-            self.parent_approvals.read((parent, child))
+            self.parent_approvals.read((parent, person_id))
         }
 
-        fn is_child_active(self: @ContractState, child: ContractAddress) -> bool {
-            self.child_active.read(child)
+        fn is_person_active(self: @ContractState, person_id: u64) -> bool {
+            self.person_active.read(person_id)
         }
 
         fn paused(self: @ContractState) -> bool {
@@ -438,36 +438,36 @@ pub mod KidsViewerPiggyBank {
             self.next_request_id.read()
         }
 
-        fn child_balances(
-            self: @ContractState, child: ContractAddress, token: ContractAddress,
+        fn person_balances(
+            self: @ContractState, person_id: u64, token: ContractAddress,
         ) -> u256 {
-            self.child_balances.read((child, token))
+            self.person_balances.read((person_id, token))
         }
 
-        fn child_earnings(
-            self: @ContractState, child: ContractAddress, token: ContractAddress,
+        fn person_earnings(
+            self: @ContractState, person_id: u64, token: ContractAddress,
         ) -> u256 {
-            self.child_earnings.read((child, token))
+            self.person_earnings.read((person_id, token))
         }
 
-        fn child_request_ids(self: @ContractState, child: ContractAddress) -> u64 {
-            self.child_request_ids.read(child)
+        fn person_request_ids(self: @ContractState, person_id: u64) -> u64 {
+            self.person_request_ids.read(person_id)
         }
 
         fn parent_approvals(
-            self: @ContractState, parent: ContractAddress, child: ContractAddress,
+            self: @ContractState, parent: ContractAddress, person_id: u64,
         ) -> bool {
-            self.parent_approvals.read((parent, child))
+            self.parent_approvals.read((parent, person_id))
         }
 
         fn aave_product_approvals(
-            self: @ContractState, child: ContractAddress, aave_product: ContractAddress,
+            self: @ContractState, person_id: u64, aave_product: ContractAddress,
         ) -> bool {
-            self.aave_product_approvals.read((child, aave_product))
+            self.aave_product_approvals.read((person_id, aave_product))
         }
 
-        fn child_active(self: @ContractState, child: ContractAddress) -> bool {
-            self.child_active.read(child)
+        fn person_active(self: @ContractState, person_id: u64) -> bool {
+            self.person_active.read(person_id)
         }
     }
 }

@@ -83,13 +83,13 @@ contract KidsViewerPiggyBankTest is Test {
     piggyBank.receiveReward(person1, token1, 1000 * 10 ** 6);
 
     // Then request withdrawal
-    vm.prank(person1);
-    piggyBank.requestWithdrawal(token1, amount, reason);
+    vm.prank(parent1);
+    piggyBank.requestWithdrawal(person1, token1, amount, reason);
 
-    assertEq(piggyBank.childRequestIds(person1), 1);
+    assertEq(piggyBank.personRequestIds(person1), 1);
 
     KidsViewerPiggyBank.WithdrawalRequest memory request = piggyBank.getWithdrawalRequest(1);
-    assertEq(request.child, person1);
+    assertEq(request.personId, person1);
     assertEq(request.token, token1);
     assertEq(request.amount, amount);
     assertEq(request.reason, reason);
@@ -104,26 +104,26 @@ contract KidsViewerPiggyBankTest is Test {
     vm.prank(owner);
     piggyBank.pause();
 
-    vm.prank(person1);
+    vm.prank(parent1);
     vm.expectRevert('KidsViewerPiggyBank: Paused');
-    piggyBank.requestWithdrawal(token1, amount, reason);
+    piggyBank.requestWithdrawal(person1, token1, amount, reason);
   }
 
   function testRequestWithdrawalRevertsWhenAmountZero() public {
     string memory reason = 'Need money for school supplies';
 
-    vm.prank(person1);
+    vm.prank(parent1);
     vm.expectRevert('KidsViewerPiggyBank: Amount > 0');
-    piggyBank.requestWithdrawal(token1, 0, reason);
+    piggyBank.requestWithdrawal(person1, token1, 0, reason);
   }
 
   function testRequestWithdrawalRevertsWhenInsufficientBalance() public {
     uint256 amount = 500 * 10 ** 6;
     string memory reason = 'Need money for school supplies';
 
-    vm.prank(person1);
+    vm.prank(parent1);
     vm.expectRevert('KidsViewerPiggyBank: Insufficient');
-    piggyBank.requestWithdrawal(token1, amount, reason);
+    piggyBank.requestWithdrawal(person1, token1, amount, reason);
   }
 
   function testApproveWithdrawal() public {
@@ -138,8 +138,8 @@ contract KidsViewerPiggyBankTest is Test {
     piggyBank.receiveReward(person1, token1, 1000 * 10 ** 6);
 
     // Request withdrawal
-    vm.prank(person1);
-    piggyBank.requestWithdrawal(token1, amount, reason);
+    vm.prank(parent1);
+    piggyBank.requestWithdrawal(person1, token1, amount, reason);
 
     // Approve withdrawal
     vm.prank(owner);
@@ -147,7 +147,7 @@ contract KidsViewerPiggyBankTest is Test {
 
     KidsViewerPiggyBank.WithdrawalRequest memory request = piggyBank.getWithdrawalRequest(1);
     assertTrue(request.approved);
-    assertEq(piggyBank.childBalances(person1, token1), 1000 * 10 ** 6 - amount);
+    assertEq(piggyBank.personBalances(person1, token1), 1000 * 10 ** 6 - amount);
   }
 
   function testApproveWithdrawalRevertsWhenNotOwner() public {
@@ -161,8 +161,8 @@ contract KidsViewerPiggyBankTest is Test {
     vm.prank(parent1);
     piggyBank.receiveReward(person1, token1, 1000 * 10 ** 6);
 
-    vm.prank(person1);
-    piggyBank.requestWithdrawal(token1, amount, reason);
+    vm.prank(parent1);
+    piggyBank.requestWithdrawal(person1, token1, amount, reason);
 
     vm.prank(parent1);
     vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, parent1));
@@ -180,8 +180,8 @@ contract KidsViewerPiggyBankTest is Test {
     vm.prank(parent1);
     piggyBank.receiveReward(person1, token1, 1000 * 10 ** 6);
 
-    vm.prank(person1);
-    piggyBank.requestWithdrawal(token1, amount, reason);
+    vm.prank(parent1);
+    piggyBank.requestWithdrawal(person1, token1, amount, reason);
 
     vm.prank(owner);
     piggyBank.pause();
@@ -203,8 +203,8 @@ contract KidsViewerPiggyBankTest is Test {
     vm.prank(parent1);
     piggyBank.receiveReward(person1, token1, 1000 * 10 ** 6);
 
-    vm.prank(person1);
-    piggyBank.requestWithdrawal(token1, amount, reason);
+    vm.prank(parent1);
+    piggyBank.requestWithdrawal(person1, token1, amount, reason);
 
     // Reject withdrawal
     vm.prank(owner);
@@ -227,10 +227,10 @@ contract KidsViewerPiggyBankTest is Test {
     piggyBank.receiveReward(person1, token1, 1000 * 10 ** 6);
 
     // Invest
-    vm.prank(person1);
-    piggyBank.investInAave(token1, amount, aaveProduct1);
+    vm.prank(parent1);
+    piggyBank.investInAave(person1, token1, amount, aaveProduct1);
 
-    assertEq(piggyBank.childBalances(person1, token1), 1000 * 10 ** 6 - amount);
+    assertEq(piggyBank.personBalances(person1, token1), 1000 * 10 ** 6 - amount);
   }
 
   function testInvestInAaveRevertsWhenPaused() public {
@@ -239,23 +239,23 @@ contract KidsViewerPiggyBankTest is Test {
     vm.prank(owner);
     piggyBank.pause();
 
-    vm.prank(person1);
+    vm.prank(parent1);
     vm.expectRevert('KidsViewerPiggyBank: Paused');
-    piggyBank.investInAave(token1, amount, aaveProduct1);
+    piggyBank.investInAave(person1, token1, amount, aaveProduct1);
   }
 
   function testInvestInAaveRevertsWhenAmountZero() public {
-    vm.prank(person1);
+    vm.prank(parent1);
     vm.expectRevert('KidsViewerPiggyBank: Amount > 0');
-    piggyBank.investInAave(token1, 0, aaveProduct1);
+    piggyBank.investInAave(person1, token1, 0, aaveProduct1);
   }
 
   function testInvestInAaveRevertsWhenInsufficientBalance() public {
     uint256 amount = 500 * 10 ** 6;
 
-    vm.prank(person1);
+    vm.prank(parent1);
     vm.expectRevert('KidsViewerPiggyBank: Insufficient');
-    piggyBank.investInAave(token1, amount, aaveProduct1);
+    piggyBank.investInAave(person1, token1, amount, aaveProduct1);
   }
 
   function testRecoverAllInvestments() public {
@@ -272,7 +272,7 @@ contract KidsViewerPiggyBankTest is Test {
     vm.prank(parent1);
     piggyBank.recoverAllInvestments(person1, token1);
 
-    assertEq(piggyBank.childBalances(person1, token1), 0);
+    assertEq(piggyBank.personBalances(person1, token1), 0);
   }
 
   function testRecoverAllInvestmentsRevertsWhenNotParent() public {
@@ -335,15 +335,15 @@ contract KidsViewerPiggyBankTest is Test {
 
   function testSetChildActive() public {
     vm.prank(owner);
-    piggyBank.setChildActive(person1, true);
+    piggyBank.setPersonActive(person1, true);
 
-    assertTrue(piggyBank.childActive(person1));
+    assertTrue(piggyBank.personActive(person1));
   }
 
   function testSetChildActiveRevertsWhenNotOwner() public {
     vm.prank(parent1);
     vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, parent1));
-    piggyBank.setChildActive(person1, true);
+    piggyBank.setPersonActive(person1, true);
   }
 
   function testPause() public {
@@ -372,7 +372,7 @@ contract KidsViewerPiggyBankTest is Test {
     vm.prank(parent1);
     piggyBank.receiveReward(person1, token1, amount);
 
-    assertEq(piggyBank.getChildBalance(person1, token1), amount);
+    assertEq(piggyBank.getPersonBalance(person1, token1), amount);
   }
 
   function testGetChildEarnings() public {
@@ -384,7 +384,7 @@ contract KidsViewerPiggyBankTest is Test {
     vm.prank(parent1);
     piggyBank.receiveReward(person1, token1, amount);
 
-    (uint256 balance, uint256 earnings) = piggyBank.getChildEarnings(person1, token1);
+    (uint256 balance, uint256 earnings) = piggyBank.getPersonEarnings(person1, token1);
     assertEq(balance, amount);
     assertEq(earnings, amount);
   }
@@ -400,11 +400,11 @@ contract KidsViewerPiggyBankTest is Test {
     vm.prank(parent1);
     piggyBank.receiveReward(person1, token1, 1000 * 10 ** 6);
 
-    vm.prank(person1);
-    piggyBank.requestWithdrawal(token1, amount, reason);
+    vm.prank(parent1);
+    piggyBank.requestWithdrawal(person1, token1, amount, reason);
 
     KidsViewerPiggyBank.WithdrawalRequest memory request = piggyBank.getWithdrawalRequest(1);
-    assertEq(request.child, person1);
+    assertEq(request.personId, person1);
     assertEq(request.token, token1);
     assertEq(request.amount, amount);
     assertEq(request.reason, reason);
@@ -421,10 +421,10 @@ contract KidsViewerPiggyBankTest is Test {
     vm.prank(parent1);
     piggyBank.receiveReward(person1, token1, 1000 * 10 ** 6);
 
-    vm.prank(person1);
-    piggyBank.requestWithdrawal(token1, amount, reason);
+    vm.prank(parent1);
+    piggyBank.requestWithdrawal(person1, token1, amount, reason);
 
-    assertEq(piggyBank.getChildWithdrawalRequests(person1), 1);
+    assertEq(piggyBank.getPersonWithdrawalRequests(person1), 1);
   }
 
   function testIsAaveProductApproved() public {
@@ -448,9 +448,9 @@ contract KidsViewerPiggyBankTest is Test {
 
   function testIsChildActive() public {
     vm.prank(owner);
-    piggyBank.setChildActive(person1, true);
+    piggyBank.setPersonActive(person1, true);
 
-    assertTrue(piggyBank.isChildActive(person1));
-    assertFalse(piggyBank.isChildActive(person2));
+    assertTrue(piggyBank.isPersonActive(person1));
+    assertFalse(piggyBank.isPersonActive(person2));
   }
 }
