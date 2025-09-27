@@ -1,0 +1,14 @@
+[sncast.devnet]
+url = "http://localhost:5050/rpc"
+accounts-file = "local-accounts.json"
+account = "devnet0"
+show-explorer-links = false
+
+[sncast.sepolia]
+# Must be 'SN_SEPOLIA' and see:https://github.com/foundry-rs/starknet-foundry/blob/437d128b4f54847666ea8021530d237f6bf47866/crates/sncast/src/lib.rs#L237-L238
+chain_id = "SN_SEPOLIA"
+#url = "https://starknet-sepolia.public.blastapi.io"
+url = "https://starknet-sepolia.g.alchemy.com/starknet/version/rpc/v0_8/hWvw1XMZRZY4oNd6EvHgk"
+accounts-file = "accounts.json"
+account = "jw-strk-t2"
+show-explorer-links = true
