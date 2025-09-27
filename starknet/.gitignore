@@ -1,0 +1,10 @@
+node_modules
+dist
+target
+build
+.secrets
+accounts.json
+local-accounts.json
+garaga-venv
+.snfoundry_cache/
+.env
